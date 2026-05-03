@@ -1,0 +1,26 @@
+:root {
+  --app-background: #0f1115;
+  --side-panel-background: #161a20;
+  --app-border: #2a2f36;
+  --app-text: #e6e6e6;
+  --muted-text: #9aa0a6;
+  --side-panel-heading-text: #fff;
+  --light-field-text: #000;
+
+  --add-project-name-field-background: #23262c;
+    --add-project-name-field-text: #fff;
+    
+  --bulk-edit-textarea-background: #292e38;
+  --bulk-edit-textarea-text: #fff;
+  --project-name-text: #ffffff;
+  --project-note-text: #6ea6f0;
+  --project-note-placeholder-text: #292e38;
+  --add-project-button-background: #ff6b35;
+  --copy-json-button-background: #1a3d6d;
+  --move-to-top-button-background: #2fbf71;
+  --delete-button-background: #ff4d4d;
+  --toast-background: #e6e6e6;
+  --raised-panel-shadow: 4px 4px 0 #000;
+  --project-card-radius: 18px;
+  --project-card-background: #1b2027;
+}

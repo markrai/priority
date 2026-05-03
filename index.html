@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Priority Stack</title>
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--app-background);
+      color: var(--app-text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      padding: 22px;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+    }
+
+    
+    
+    
+    
+    
+    
+    
+    
+    .toolbar {
+      margin-top: 26px;
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .add-box {
+      display: flex;
+      gap: 10px;
+      border: 2px solid var(--app-border);
+      border-radius: 20px;
+      background: white;
+      padding: 8px;
+      box-shadow: var(--raised-panel-shadow);
+    }
+
+    .add-box input {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--add-project-name-field-background);
+      color: var(--add-project-name-field-text);
+    }
+
+    .add-box input::placeholder {
+      color: var(--muted-text);
+    }
+
+    .btn {
+      border: 2px solid var(--app-border);
+      border-radius: 16px;
+      padding: 11px 15px;
+      background: white;
+      color: var(--app-text);
+      font-weight: 850;
+      cursor: pointer;
+      box-shadow: 3px 3px 0 var(--app-border);
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 5px 5px 0 var(--app-border);
+    }
+
+    .btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 var(--app-border);
+    }
+
+    .btn.primary {
+      background: var(--add-project-button-background);
+      color: white;
+    }
+
+    .btn.blue {
+      background: var(--copy-json-button-background);
+      color: white;
+    }
+
+    .btn.danger {
+      background: var(--delete-button-background);
+      color: white;
+    }
+
+    .board {
+      margin-top: 26px;
+      display: grid;
+      grid-template-columns: 1fr 330px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .project-card {
+      border: 2px solid var(--app-border);
+      border-radius: var(--project-card-radius);
+      background: var(--project-card-background);
+      box-shadow: var(--raised-panel-shadow);
+      display: grid;
+      grid-template-columns: 58px 1fr auto;
+      gap: 12px;
+      padding: 12px;
+      align-items: start;
+      transition: transform 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
+    }
+
+    .project-card.dragging {
+      opacity: 0.42;
+      transform: scale(0.985);
+    }
+
+    .project-card.drop-target {
+      outline: 4px solid var(--add-project-button-background);
+      outline-offset: 3px;
+    }
+
+    .rank {
+      width: 46px;
+      height: 46px;
+      border: 2px solid var(--app-border);
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: #0f1115;
+      font-weight: 950;
+      font-size: 1.1rem;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .rank:active {
+      cursor: grabbing;
+    }
+
+    .project-card:active .rank {
+      cursor: grabbing;
+    }
+
+    .project-main {
+      min-width: 0;
+    }
+
+    .project-name {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--project-name-text);
+      font-size: clamp(1.15rem, 2.3vw, 1.7rem);
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      padding: 4px 0;
+    }
+
+    .project-notes {
+      display: grid;
+      gap: 2px;
+      margin-top: 4px;
+    }
+
+    .project-note-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .project-note-row .project-note {
+      flex: 1;
+      min-width: 0;
+      width: auto;
+      border: 0;
+      border-bottom: 1px solid var(--app-border);
+      outline: 0;
+      background: transparent;
+      color: var(--project-note-text);
+      font-size: 0.88rem;
+      font-weight: 550;
+      padding: 6px 0 4px;
+      margin-top: 0;
+    }
+
+    .project-note::placeholder {
+      color: var(--project-note-placeholder-text);
+    }
+
+    .project-note-remove {
+      flex-shrink: 0;
+      border: 0;
+      background: transparent;
+      color: var(--muted-text);
+      cursor: pointer;
+      padding: 2px 4px;
+      font-size: 0.75rem;
+      line-height: 1;
+      font-weight: 600;
+      opacity: 0.55;
+    }
+
+    .project-note-remove:hover {
+      opacity: 1;
+      color: var(--project-note-text);
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-self: center;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--app-border);
+      border-radius: 13px;
+      background: white;
+      cursor: pointer;
+      font-weight: 950;
+      box-shadow: 2px 2px 0 var(--app-border);
+    }
+
+    .icon-btn:hover {
+      background: #f7f7f7;
+    }
+
+    .icon-btn.top {
+      background: var(--move-to-top-button-background);
+      color: white;
+    }
+
+    .icon-btn.delete {
+      background: var(--delete-button-background);
+      color: white;
+    }
+
+    .side {
+      position: sticky;
+      top: 18px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel {
+      border: 2px solid var(--app-border);
+      border-radius: 22px;
+      background: var(--side-panel-background);
+      box-shadow: var(--raised-panel-shadow);
+      padding: 18px;
+    }
+
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 1.25rem;
+      letter-spacing: -0.04em;
+    }
+
+    .panel p {
+      margin: 0;
+      color: var(--muted-text);
+      line-height: 1.45;
+      font-size: 0.95rem;
+    }
+
+    .panel textarea {
+      width: 100%;
+      min-height: 180px;
+      resize: vertical;
+      margin-top: 14px;
+      border: 2px solid var(--app-border);
+      border-radius: 14px;
+      padding: 12px;
+      outline: 0;
+      background: white;
+      color: var(--app-text);
+      line-height: 1.4;
+    }
+
+    .panel.bulk-edit h2,
+    .panel.bulk-edit p {
+      color: var(--side-panel-heading-text);
+    }
+
+    .panel.bulk-edit textarea {
+      background: var(--bulk-edit-textarea-background);
+      color: var(--bulk-edit-textarea-text);
+    }
+
+    .panel.bulk-edit textarea::placeholder {
+      color: var(--muted-text);
+    }
+
+    .panel-actions {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .empty {
+      border: 2px dashed var(--app-border);
+      border-radius: 22px;
+      background: rgba(255,255,255,0.52);
+      padding: 34px;
+      text-align: center;
+      color: var(--muted-text);
+      font-weight: 800;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: calc(100vw - 36px);
+      border: 2px solid var(--app-border);
+      border-radius: 16px;
+      background: var(--toast-background);
+      color: var(--app-background);
+      padding: 12px 14px;
+      font-weight: 800;
+      box-shadow: var(--raised-panel-shadow);
+      transform: translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        padding: 14px;
+      }
+
+      .hero,
+      .board {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .add-box {
+        grid-column: 1 / -1;
+      }
+
+      .side {
+        position: static;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero {
+        border-radius: 22px;
+        box-shadow: 5px 5px 0 var(--app-border);
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .project-card {
+        grid-template-columns: 48px 1fr;
+      }
+
+      .actions {
+        grid-column: 1 / -1;
+        justify-content: stretch;
+      }
+
+      .icon-btn {
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    
+
+    <section class="toolbar" aria-label="Project controls">
+      <form class="add-box" id="addForm">
+        <input id="projectInput" autocomplete="off" placeholder="Add a project name..." />
+        <button class="btn primary" type="submit">Add</button>
+      </form>
+      
+      <button class="btn blue" id="saveSnapshot" type="button">Copy JSON</button>
+      <button class="btn danger" id="clearAll" type="button">Clear</button>
+    </section>
+
+    <section class="board">
+      <div>
+        <div class="stack" id="stack"></div>
+        <div class="empty" id="emptyState" hidden>No projects yet. Add the mess. Then make it orderly.</div>
+      </div>
+
+      <aside class="side">
+        <div class="panel bulk-edit">
+          <h2>Bulk edit</h2>
+          <p>One project per line. Reorder lines here, then apply.</p>
+          <textarea id="bulkText" spellcheck="false"></textarea>
+          <div class="panel-actions">
+            <button class="btn primary" id="applyBulk" type="button">Apply</button>
+            <button class="btn blue" id="refreshBulk" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>How to use</h2>
+          <p>Drag the numbered handle to reorder. ↑ sends a project to the top. Edit names and notes directly. Your stack is stored under <strong>projectPriorityStack:v1</strong> in localStorage.</p>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const STORAGE_KEY="projectPriorityStack:v1";
+const fallbackProjects=["Postbaby","FRAME: Groove Machine","Scrumboy","Waqt","Sisu","Voxidian","VoxLab","Oye"];
+
+function projectFromName(name){
+  return{id:createId(),name,notes:[""]};
+}
+
+function migrateNotesFromProject(p){
+  if(Array.isArray(p.notes)&&p.notes.length){
+    const n=p.notes.map(x=>(typeof x==="string"?x:"")).slice(0,3);
+    return n.length?n:[""];
+  }
+  const legacy=typeof p.note==="string"?p.note:"";
+  if(!legacy)return[""];
+  return legacy.split(/\r?\n/).slice(0,3);
+}
+
+const stackEl=document.getElementById("stack");
+const emptyState=document.getElementById("emptyState");
+const addForm=document.getElementById("addForm");
+const projectInput=document.getElementById("projectInput");
+const bulkText=document.getElementById("bulkText");
+const toastEl=document.getElementById("toast");
+
+let projects=loadProjects();
+let draggedId=null;
+let toastTimer=null;
+let pendingNoteFocus=null;
+let moveInFlight=false;
+
+function clearDragUi(){
+  stackEl.querySelectorAll(".project-card.dragging").forEach(el=>el.classList.remove("dragging"));
+  stackEl.querySelectorAll(".project-card.drop-target").forEach(el=>el.classList.remove("drop-target"));
+}
+
+function clearDropIndicators(){
+  stackEl.querySelectorAll(".project-card.drop-target").forEach(el=>el.classList.remove("drop-target"));
+}
+
+function reorderByDrop(dragId,targetId,insertBefore){
+  if(!dragId||!targetId||dragId===targetId)return;
+  if(moveInFlight)return;
+  moveInFlight=true;
+  try{
+    const from=projects.findIndex(p=>p.id===dragId);
+    const to=projects.findIndex(p=>p.id===targetId);
+    if(from<0||to<0||from===to)return;
+    const before=projects.map(p=>p.id).join();
+    const [row]=projects.splice(from,1);
+    const t=projects.findIndex(p=>p.id===targetId);
+    if(t<0){
+      projects.splice(from,0,row);
+      return;
+    }
+    const insertAt=insertBefore?t:t+1;
+    projects.splice(insertAt,0,row);
+    if(projects.map(p=>p.id).join()===before)return;
+    saveProjects();
+    render();
+  }finally{
+    moveInFlight=false;
+  }
+}
+
+function dropOnStackEnd(e){
+  if(e.target!==stackEl)return;
+  if(!draggedId)return;
+  e.preventDefault();
+  e.stopPropagation();
+  clearDropIndicators();
+  if(moveInFlight)return;
+  moveInFlight=true;
+  try{
+    const from=projects.findIndex(p=>p.id===draggedId);
+    if(from<0)return;
+    const before=projects.map(p=>p.id).join();
+    const [row]=projects.splice(from,1);
+    projects.push(row);
+    if(projects.map(p=>p.id).join()===before)return;
+    saveProjects();
+    render();
+  }finally{
+    moveInFlight=false;
+  }
+}
+
+stackEl.ondragenter=e=>{
+  if(!draggedId)return;
+  if(e.target.closest(".project-card"))return;
+  e.preventDefault();
+};
+stackEl.ondragover=e=>{
+  if(!draggedId)return;
+  if(e.target.closest(".project-card"))return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect="move";
+  clearDropIndicators();
+};
+stackEl.ondrop=dropOnStackEnd;
+
+function createId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,9)}
+function normalizeName(v){return v.replace(/\s+/g," ").trim()}
+
+function loadProjects(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw)return fallbackProjects.map(projectFromName);
+    const arr=JSON.parse(raw);
+    if(!Array.isArray(arr))return fallbackProjects.map(projectFromName);
+    return arr.map(p=>({
+      id:typeof p.id==="string"?p.id:createId(),
+      name:typeof p.name==="string"?p.name:"",
+      notes:migrateNotesFromProject(p),
+    }));
+  }catch{
+    return fallbackProjects.map(projectFromName);
+  }
+}
+
+function saveProjects(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(projects));
+  syncBulkText();
+}
+
+function syncBulkText(){
+  bulkText.value=projects.map(p=>p.name).join("\n");
+}
+
+function showToast(m){
+  clearTimeout(toastTimer);
+  toastEl.textContent=m;
+  toastEl.classList.add("show");
+  toastTimer=setTimeout(()=>toastEl.classList.remove("show"),1500);
+}
+
+function render(){
+  stackEl.innerHTML="";
+  emptyState.hidden=projects.length!==0;
+
+  projects.forEach((p,i)=>{
+    const card=document.createElement("div");
+    card.className="project-card";
+    card.draggable=false;
+    card.dataset.id=p.id;
+
+    const rank=document.createElement("div");
+    rank.className="rank";
+    rank.draggable=true;
+    rank.textContent=i+1;
+    rank.setAttribute("aria-label","Drag to reorder");
+
+    if(!Array.isArray(p.notes)||p.notes.length===0)p.notes=migrateNotesFromProject(p);
+    if(p.notes.length>3)p.notes=p.notes.slice(0,3);
+
+    const input=document.createElement("input");
+    input.className="project-name";
+    input.value=p.name;
+    input.oninput=()=>{p.name=input.value;saveProjects()};
+    input.onblur=()=>{
+      p.name=normalizeName(p.name);
+      if(!p.name){projects=projects.filter(x=>x.id!==p.id)}
+      saveProjects();
+      render();
+    };
+
+    const notesWrap=document.createElement("div");
+    notesWrap.className="project-notes";
+
+    p.notes.forEach((noteText,ni)=>{
+      const row=document.createElement("div");
+      row.className="project-note-row";
+      row.dataset.noteIndex=String(ni);
+
+      const noteInput=document.createElement("input");
+      noteInput.className="project-note";
+      noteInput.type="text";
+      noteInput.placeholder="Note…";
+      noteInput.value=noteText;
+      noteInput.oninput=()=>{p.notes[ni]=noteInput.value;saveProjects()};
+      noteInput.onblur=()=>{p.notes[ni]=noteInput.value;saveProjects()};
+      noteInput.onkeydown=e=>{
+        if(e.key!=="Enter")return;
+        e.preventDefault();
+        if(ni<p.notes.length-1){
+          const next=row.nextElementSibling?.querySelector(".project-note");
+          if(next){next.focus();return;}
+        }
+        if(p.notes.length<3){
+          p.notes.splice(ni+1,0,"");
+          pendingNoteFocus={id:p.id,index:ni+1};
+          saveProjects();
+          render();
+        }
+      };
+
+      row.append(noteInput);
+
+      if(p.notes.length>1){
+        const removeBtn=document.createElement("button");
+        removeBtn.type="button";
+        removeBtn.className="project-note-remove";
+        removeBtn.textContent="×";
+        removeBtn.setAttribute("aria-label","Remove this note line");
+        removeBtn.onclick=ev=>{
+          ev.stopPropagation();
+          if(p.notes.length<=1){
+            p.notes[0]="";
+            saveProjects();
+            render();
+            return;
+          }
+          p.notes.splice(ni,1);
+          if(p.notes.length===0)p.notes=[""];
+          saveProjects();
+          render();
+        };
+        row.append(removeBtn);
+      }
+
+      notesWrap.append(row);
+    });
+
+    const main=document.createElement("div");
+    main.className="project-main";
+    main.append(input,notesWrap);
+
+    const actions=document.createElement("div");
+    actions.className="actions";
+
+    const topBtn=document.createElement("button");
+    topBtn.className="icon-btn top";
+    topBtn.textContent="⇧";
+    topBtn.onclick=()=>move(i,0);
+
+    const delBtn=document.createElement("button");
+    delBtn.className="icon-btn delete";
+    delBtn.textContent="×";
+    delBtn.onclick=()=>{
+      projects=projects.filter(x=>x.id!==p.id);
+      saveProjects();
+      render();
+    };
+
+    actions.append(topBtn,delBtn);
+    card.append(rank,main,actions);
+
+    rank.ondragstart=e=>{
+      e.stopPropagation();
+      draggedId=p.id;
+      e.dataTransfer.effectAllowed="move";
+      e.dataTransfer.setData("text/plain",p.id);
+      card.classList.add("dragging");
+    };
+
+    rank.ondragend=e=>{
+      e.stopPropagation();
+      card.classList.remove("dragging");
+      clearDropIndicators();
+    };
+
+    card.ondragenter=e=>{
+      if(!draggedId||draggedId===p.id)return;
+      e.preventDefault();
+    };
+
+    card.ondragover=e=>{
+      if(!draggedId||draggedId===p.id)return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect="move";
+      clearDropIndicators();
+      card.classList.add("drop-target");
+    };
+
+    card.ondragleave=e=>{
+      if(!e.relatedTarget||!card.contains(e.relatedTarget))card.classList.remove("drop-target");
+    };
+
+    card.ondrop=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(!draggedId||draggedId===p.id)return;
+      clearDropIndicators();
+      const rect=card.getBoundingClientRect();
+      const insertBefore=e.clientY<rect.top+rect.height/2;
+      reorderByDrop(draggedId,p.id,insertBefore);
+    };
+
+    stackEl.append(card);
+  });
+
+  if(pendingNoteFocus){
+    const esc=CSS.escape(pendingNoteFocus.id);
+    const sel=`.project-card[data-id="${esc}"] .project-note-row[data-note-index="${pendingNoteFocus.index}"] .project-note`;
+    queueMicrotask(()=>{stackEl.querySelector(sel)?.focus();});
+    pendingNoteFocus=null;
+  }
+
+  syncBulkText();
+}
+
+function move(from,to){
+  if(from===to)return;
+  const item=projects.splice(from,1)[0];
+  projects.splice(to,0,item);
+  saveProjects();
+  render();
+}
+
+addForm.onsubmit=e=>{
+  e.preventDefault();
+  const name=normalizeName(projectInput.value);
+  if(!name)return;
+  projects.push(projectFromName(name));
+  projectInput.value="";
+  saveProjects();
+  render();
+};
+
+document.getElementById("saveSnapshot").onclick=async()=>{
+  const json=JSON.stringify(projects,null,2);
+  try{
+    await navigator.clipboard.writeText(json);
+    showToast("Copied");
+  }catch{
+    bulkText.value=json;
+    bulkText.select();
+    showToast("Clipboard blocked");
+  }
+};
+
+document.getElementById("clearAll").onclick=()=>{
+  if(confirm("Clear all?")){
+    projects=[];
+    saveProjects();
+    render();
+  }
+};
+
+document.getElementById("applyBulk").onclick=()=>{
+  const names=bulkText.value.split("\n").map(normalizeName).filter(Boolean);
+  const pool=[...projects];
+  projects=names.map(n=>{
+    const i=pool.findIndex(x=>normalizeName(x.name)===n);
+    if(i>=0){
+      const prev=pool.splice(i,1)[0];
+      return{id:prev.id,name:n,notes:migrateNotesFromProject(prev)};
+    }
+    return projectFromName(n);
+  });
+  saveProjects();
+  render();
+};
+
+document.getElementById("refreshBulk").onclick=syncBulkText;
+
+window.addEventListener("dragend",()=>{
+  draggedId=null;
+  clearDragUi();
+});
+
+render();
+</script>
+</body>
+</html>
