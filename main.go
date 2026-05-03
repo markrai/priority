@@ -8,18 +8,33 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-const (
-	dataFile    = "projects.json"
-	maxBodySize = 8 << 20
-)
+const maxBodySize = 8 << 20
+
+var dataFilePath string
+
+func getenv(key, def string) string {
+	v := os.Getenv(key)
+	if strings.TrimSpace(v) == "" {
+		return def
+	}
+	return v
+}
 
 func main() {
+	dataFilePath = getenv("DATA_FILE", "/app/data/projects.json")
+	if err := os.MkdirAll(filepath.Dir(dataFilePath), 0755); err != nil {
+		log.Fatal(err)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/projects", handleProjects)
 	mux.Handle("/", http.FileServer(http.Dir("public")))
-	log.Fatal(http.ListenAndServe(":8080", mux))
+
+	addr := ":" + getenv("PORT", "8080")
+	log.Fatal(http.ListenAndServe(addr, mux))
 }
 
 func handleProjects(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +49,7 @@ func handleProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGet(w http.ResponseWriter) {
-	b, err := os.ReadFile(dataFile)
+	b, err := os.ReadFile(dataFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			jsonOK(w, []byte("[]"))
@@ -81,7 +96,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "marshal failed", http.StatusInternalServerError)
 		return
 	}
-	if err := atomicWrite(dataFile, out); err != nil {
+	if err := atomicWrite(dataFilePath, out); err != nil {
 		http.Error(w, "write failed", http.StatusInternalServerError)
 		return
 	}

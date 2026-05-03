@@ -16,6 +16,9 @@ vendor/
 # Shared stack file (created at runtime; do not commit LAN data)
 /projects.json
 
+# Docker Compose bind mount (local / NAS)
+/data/
+
 # OS
 .DS_Store
 Thumbs.db

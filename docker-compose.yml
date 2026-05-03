@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  priority-stack:
+    build: .
+    container_name: priority-stack
+    ports:
+      - "8095:8080"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
