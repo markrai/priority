@@ -45,9 +45,23 @@
     .toolbar {
       margin-top: 26px;
       display: grid;
-      grid-template-columns: 1fr auto auto auto auto;
+      grid-template-columns: 1fr auto;
       gap: 12px;
       align-items: center;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+    }
+
+    .toolbar-actions .btn {
+      flex-shrink: 0;
     }
 
     .add-box {
@@ -109,6 +123,11 @@
 
     .btn.danger {
       background: var(--delete-button-background);
+      color: white;
+    }
+
+    .btn.import {
+      background: var(--import-button-background);
       color: white;
     }
 
@@ -379,14 +398,6 @@
         grid-template-columns: 1fr;
       }
 
-      .toolbar {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .add-box {
-        grid-column: 1 / -1;
-      }
-
       .side {
         position: static;
       }
@@ -430,10 +441,12 @@
         <input id="projectInput" autocomplete="off" placeholder="Add a project name..." />
         <button class="btn primary" type="submit">Add</button>
       </form>
-      <input type="file" id="importFileInput" accept=".json,application/json" hidden />
-      <button class="btn" id="importSnapshot" type="button">Import</button>
-      <button class="btn blue" id="saveSnapshot" type="button">Export</button>
-      <button class="btn danger" id="clearAll" type="button">Clear</button>
+      <div class="toolbar-actions">
+        <input type="file" id="importFileInput" accept=".json,application/json" hidden />
+        <button class="btn import" id="importSnapshot" type="button">Import</button>
+        <button class="btn blue" id="saveSnapshot" type="button">Export</button>
+        <button class="btn danger" id="clearAll" type="button">Clear</button>
+      </div>
     </section>
 
     <section class="board">
