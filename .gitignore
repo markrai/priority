@@ -1,0 +1,21 @@
+# Go build / test
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+vendor/
+
+# Built binary (go build -o priority .)
+/priority
+/priority.exe
+
+# Shared stack file (created at runtime; do not commit LAN data)
+/projects.json
+
+# OS
+.DS_Store
+Thumbs.db

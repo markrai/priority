@@ -468,7 +468,7 @@
 
         <div class="panel">
           <h2>How to use</h2>
-          <p>Drag the numbered handle to reorder. ↑ sends a project to the top. Edit names and notes directly. Your stack is stored under <strong>projectPriorityStack:v1</strong> in localStorage.</p>
+          <p>Drag the numbered handle to reorder. ↑ sends a project to the top. Edit names and notes directly. Your stack is saved on the server in <strong>projects.json</strong> (this intranet URL).</p>
         </div>
       </aside>
     </section>
@@ -477,9 +477,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-const STORAGE_KEY="projectPriorityStack:v1";
-const fallbackProjects=["Postbaby","FRAME: Groove Machine","Scrumboy","Waqt","Sisu","Voxidian","VoxLab","Oye"];
-
 function projectFromName(name){
   return{id:createId(),name,notes:[""]};
 }
@@ -501,11 +498,12 @@ const projectInput=document.getElementById("projectInput");
 const bulkText=document.getElementById("bulkText");
 const toastEl=document.getElementById("toast");
 
-let projects=loadProjects();
+let projects=[];
 let draggedId=null;
 let toastTimer=null;
 let pendingNoteFocus=null;
 let moveInFlight=false;
+let saveDebounceTimer=null;
 
 function clearDragUi(){
   stackEl.querySelectorAll(".project-card.dragging").forEach(el=>el.classList.remove("dragging"));
@@ -588,21 +586,37 @@ function normalizeProjectsArray(arr){
   }));
 }
 
-function loadProjects(){
+async function loadProjects(){
   try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(!raw)return fallbackProjects.map(projectFromName);
-    const arr=JSON.parse(raw);
-    if(!Array.isArray(arr))return fallbackProjects.map(projectFromName);
-    return normalizeProjectsArray(arr);
+    const res=await fetch("/api/projects");
+    if(!res.ok){showToast("Server unavailable");return[];}
+    const data=await res.json();
+    if(!Array.isArray(data))return[];
+    return normalizeProjectsArray(data);
   }catch{
-    return fallbackProjects.map(projectFromName);
+    showToast("Server unavailable");
+    return[];
+  }
+}
+
+async function persistProjects(){
+  try{
+    const res=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(projects)});
+    if(!res.ok)showToast("Server unavailable");
+  }catch{
+    showToast("Server unavailable");
   }
 }
 
 function saveProjects(){
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(projects));
+  if(saveDebounceTimer!==null){clearTimeout(saveDebounceTimer);saveDebounceTimer=null;}
   syncBulkText();
+  persistProjects();
+}
+
+function saveProjectsDebounced(){
+  if(saveDebounceTimer!==null)clearTimeout(saveDebounceTimer);
+  saveDebounceTimer=setTimeout(()=>{saveDebounceTimer=null;saveProjects();},300);
 }
 
 function syncBulkText(){
@@ -638,7 +652,7 @@ function render(){
     const input=document.createElement("input");
     input.className="project-name";
     input.value=p.name;
-    input.oninput=()=>{p.name=input.value;saveProjects()};
+    input.oninput=()=>{p.name=input.value;saveProjectsDebounced()};
     input.onblur=()=>{
       p.name=normalizeName(p.name);
       if(!p.name){projects=projects.filter(x=>x.id!==p.id)}
@@ -659,7 +673,7 @@ function render(){
       noteInput.type="text";
       noteInput.placeholder="Note…";
       noteInput.value=noteText;
-      noteInput.oninput=()=>{p.notes[ni]=noteInput.value;saveProjects()};
+      noteInput.oninput=()=>{p.notes[ni]=noteInput.value;saveProjectsDebounced()};
       noteInput.onblur=()=>{p.notes[ni]=noteInput.value;saveProjects()};
       noteInput.onkeydown=e=>{
         if(e.key!=="Enter")return;
@@ -875,7 +889,10 @@ window.addEventListener("dragend",()=>{
   clearDragUi();
 });
 
-render();
+(async ()=>{
+  projects=await loadProjects();
+  render();
+})();
 </script>
 </body>
 </html>
