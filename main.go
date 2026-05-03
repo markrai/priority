@@ -108,6 +108,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := atomicWrite(dataFilePath, out); err != nil {
 		logErrResp(r, http.StatusInternalServerError, "write failed")
+		log.Printf("write_failed_detail data_file=%s err=%v", dataFilePath, err)
 		http.Error(w, "write failed", http.StatusInternalServerError)
 		return
 	}
