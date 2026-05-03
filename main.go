@@ -40,21 +40,27 @@ func main() {
 func handleProjects(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		handleGet(w)
+		handleGet(w, r)
 	case http.MethodPost:
 		handlePost(w, r)
 	default:
+		logErrResp(r, http.StatusMethodNotAllowed, "method not allowed")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
-func handleGet(w http.ResponseWriter) {
+func logErrResp(r *http.Request, status int, reason string) {
+	log.Printf("%s %s %s %d %s", r.Method, r.URL.Path, r.RemoteAddr, status, reason)
+}
+
+func handleGet(w http.ResponseWriter, r *http.Request) {
 	b, err := os.ReadFile(dataFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			jsonOK(w, []byte("[]"))
 			return
 		}
+		logErrResp(r, http.StatusInternalServerError, "read failed")
 		http.Error(w, "read failed", http.StatusInternalServerError)
 		return
 	}
@@ -78,25 +84,30 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
+		logErrResp(r, http.StatusRequestEntityTooLarge, "body too large")
 		http.Error(w, "body too large", http.StatusRequestEntityTooLarge)
 		return
 	}
 	trimmed := bytes.TrimSpace(b)
 	if len(trimmed) == 0 || trimmed[0] != '[' {
+		logErrResp(r, http.StatusBadRequest, "expected json array")
 		http.Error(w, "expected json array", http.StatusBadRequest)
 		return
 	}
 	var arr []any
 	if err := json.Unmarshal(trimmed, &arr); err != nil {
+		logErrResp(r, http.StatusBadRequest, "invalid json")
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
 	out, err := json.Marshal(arr)
 	if err != nil {
+		logErrResp(r, http.StatusInternalServerError, "marshal failed")
 		http.Error(w, "marshal failed", http.StatusInternalServerError)
 		return
 	}
 	if err := atomicWrite(dataFilePath, out); err != nil {
+		logErrResp(r, http.StatusInternalServerError, "write failed")
 		http.Error(w, "write failed", http.StatusInternalServerError)
 		return
 	}
