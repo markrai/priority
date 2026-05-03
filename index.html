@@ -45,7 +45,7 @@
     .toolbar {
       margin-top: 26px;
       display: grid;
-      grid-template-columns: 1fr auto auto auto;
+      grid-template-columns: 1fr auto auto auto auto;
       gap: 12px;
       align-items: center;
     }
@@ -430,8 +430,9 @@
         <input id="projectInput" autocomplete="off" placeholder="Add a project name..." />
         <button class="btn primary" type="submit">Add</button>
       </form>
-      
-      <button class="btn blue" id="saveSnapshot" type="button">Copy JSON</button>
+      <input type="file" id="importFileInput" accept=".json,application/json" hidden />
+      <button class="btn" id="importSnapshot" type="button">Import</button>
+      <button class="btn blue" id="saveSnapshot" type="button">Export</button>
       <button class="btn danger" id="clearAll" type="button">Clear</button>
     </section>
 
@@ -566,17 +567,21 @@ stackEl.ondrop=dropOnStackEnd;
 function createId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,9)}
 function normalizeName(v){return v.replace(/\s+/g," ").trim()}
 
+function normalizeProjectsArray(arr){
+  return arr.map(p=>({
+    id:typeof p.id==="string"?p.id:createId(),
+    name:typeof p.name==="string"?p.name:"",
+    notes:migrateNotesFromProject(p),
+  }));
+}
+
 function loadProjects(){
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
     if(!raw)return fallbackProjects.map(projectFromName);
     const arr=JSON.parse(raw);
     if(!Array.isArray(arr))return fallbackProjects.map(projectFromName);
-    return arr.map(p=>({
-      id:typeof p.id==="string"?p.id:createId(),
-      name:typeof p.name==="string"?p.name:"",
-      notes:migrateNotesFromProject(p),
-    }));
+    return normalizeProjectsArray(arr);
   }catch{
     return fallbackProjects.map(projectFromName);
   }
@@ -781,16 +786,50 @@ addForm.onsubmit=e=>{
   render();
 };
 
-document.getElementById("saveSnapshot").onclick=async()=>{
+const importFileInput=document.getElementById("importFileInput");
+document.getElementById("importSnapshot").onclick=()=>importFileInput.click();
+importFileInput.onchange=()=>{
+  const file=importFileInput.files?.[0];
+  importFileInput.value="";
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const arr=JSON.parse(reader.result);
+      if(!Array.isArray(arr)){
+        showToast("Invalid file");
+        return;
+      }
+      if(!confirm("Replace your current stack with this file?"))return;
+      projects=normalizeProjectsArray(arr);
+      saveProjects();
+      render();
+      showToast("Imported");
+    }catch{
+      showToast("Invalid JSON");
+    }
+  };
+  reader.onerror=()=>showToast("Could not read file");
+  reader.readAsText(file);
+};
+
+document.getElementById("saveSnapshot").onclick=()=>{
   const json=JSON.stringify(projects,null,2);
-  try{
-    await navigator.clipboard.writeText(json);
-    showToast("Copied");
-  }catch{
-    bulkText.value=json;
-    bulkText.select();
-    showToast("Clipboard blocked");
-  }
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,"0");
+  const stamp=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const filename=`Priority-${stamp}.json`;
+  const blob=new Blob([json],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=filename;
+  a.rel="noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast("Exported");
 };
 
 document.getElementById("clearAll").onclick=()=>{
